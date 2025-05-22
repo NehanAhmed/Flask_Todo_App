@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% block title %}Home | TodoApp{% endblock %}
+{% block content %}
+
+<style>
+    .sidebar {
+        height: 100vh;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        border-right: 1px solid #ddd;
+    }
+
+    .sidebar.collapsed {
+        width: 60px;
+    }
+
+    .sidebar .collapse-content {
+        display: block;
+    }
+
+    .sidebar.collapsed .collapse-content {
+        display: none;
+    }
+
+    body.dark-mode {
+        background-color: #121212;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .table {
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .table thead {
+        background-color: #333;
+    }
+</style>
+
+<div class="d-flex">
+    <!-- Sidebar -->
+    <div id="sidebar" class="bg-light sidebar p-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="bi bi-funnel-fill"></i> Filters</h5>
+
+        </div>
+
+        <div class="collapse-content">
+            <form method="GET" action="{{ url_for('home') }}">
+                <!-- Filter by Status -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold"><i class="bi bi-check-circle"></i> Status</label>
+                    <select class="form-select" name="filter">
+                        <option value="all">All</option>
+                        <option value="completed">Completed</option>
+                        <option value="incomplete">Incomplete</option>
+                    </select>
+                </div>
+
+                <!-- Filter by Importance -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> Importance</label>
+                    <select class="form-select" name="importance">
+                        <option value="">All</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+
+                <!-- Filter by Date -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold"><i class="bi bi-calendar-date-fill"></i> Date</label>
+                    <input type="date" class="form-control" name="date">
+                </div>
+
+                <button class="btn btn-primary w-100">Apply</button>
+            </form>
+        </div>
+
+        <!-- Dark Mode Toggle -->
+        <div class="form-check form-switch mt-4">
+            <input class="form-check-input" type="checkbox" id="darkModeToggle" onclick="toggleDarkMode()">
+            <label class="form-check-label" for="darkModeToggle">Dark Mode</label>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow-1 p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="fw-bold">📝 My Todo List</h2>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addModal">+ Create New</button>
+        </div>
+
+        <!-- Search bar -->
+        <form method="GET" action="{{ url_for('home') }}" class="mb-3">
+            <div class="input-group">
+                <input type="text" class="form-control" name="search" placeholder="Search todos...">
+                <button class="btn btn-outline-primary">Search</button>
+            </div>
+        </form>
+
+        {% if todos %}
+        <div class="table-responsive shadow-sm rounded">
+            <table class="table table-hover table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Title</th>
+                        <th>Description</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for todo in todos %}
+                    <tr class="{% if todo.is_completed %}table-success text-decoration-line-through{% endif %}">
+                        <td>{{ loop.index }}</td>
+                        <td><strong>{{ todo.title }}</strong></td>
+                        <td>{{ todo.desc }}</td>
+                        <td>
+                            <span class="badge bg-secondary">
+                                {{ todo.date_created_at.strftime('%d %b %Y') }}
+                            </span>
+                        </td>
+                        <td>
+                            <form action="/toggle/{{ todo.id }}" method="GET" style="display:inline">
+                                <button
+                                    class="btn btn-sm {% if todo.is_completed %}btn-outline-success{% else %}btn-outline-secondary{% endif %}">
+                                    {% if todo.is_completed %}✅{% else %}⬜{% endif %}
+                                </button>
+                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-primary editBtn" data-id="{{ todo.id }}"
+                                data-title="{{ todo.title }}" data-desc="{{ todo.desc }}">✏️</button>
+                            <a href="/delete/{{ todo.id }}" class="btn btn-sm btn-outline-danger">🗑️</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-warning text-center mt-4">No todos found for the applied filters.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal: Add Todo -->
+<div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="/" method="POST" class="modal-content shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="addModalLabel">Create New Todo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" name="title" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="desc" class="form-control" rows="3" required></textarea>
+                </div>
+                  <!-- Priority -->
+            <label class="form-label">Priority</label>
+            <select name="priority" class="form-control mb-3">
+                <option value="Low">Low</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="High">High</option>
+            </select>
+
+            <!-- Due Date -->
+            <label class="form-label">Due Date</label>
+            <input type="date" name="due_date" class="form-control mb-3">
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-success">Add Todo</button>
+            </div>
+            </div>
+          
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Edit Todo -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content shadow" id="editForm">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="editModalLabel">Edit Todo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="id" id="edit-id">
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" name="title" id="edit-title" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="desc" id="edit-desc" class="form-control" rows="3" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Update Todo</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleSidebar() {
+        document.getElementById("sidebar").classList.toggle("collapsed");
+    }
+
+    function toggleDarkMode() {
+        document.body.classList.toggle("dark-mode");
+    }
+
+    document.querySelectorAll('.editBtn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('edit-id').value = btn.dataset.id;
+            document.getElementById('edit-title').value = btn.dataset.title;
+            document.getElementById('edit-desc').value = btn.dataset.desc;
+            const modal = new bootstrap.Modal(document.getElementById('editModal'));
+            modal.show();
+        });
+    });
+</script>
+<nav>
+  <ul class="pagination">
+    {% if todos.has_prev %}
+      <li class="page-item"><a class="page-link" href="?page={{ todos.prev_num }}">Previous</a></li>
+    {% endif %}
+    {% if todos.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ todos.next_num }}">Next</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endblock %}
